@@ -1,0 +1,57 @@
+---Create tabel
+CREATE TABLE company_staff (
+    Staff_ID INT,
+    Name VARCHAR(50),
+    Salary INT,
+    ModifiedDate DATETIME
+);
+---Inserting values
+INSERT INTO company_staff VALUES
+(1,'John',50000,'2026-06-20'),
+(2,'Alice',65000,'2026-06-21'),
+(3,'Bob',70000,'2026-06-22'),
+(4,'Sarah',60000,'2026-06-23');
+-----Checking table
+select * from company_staff;
+-----Creating watermark table
+CREATE TABLE Watermark1 (
+    TableName VARCHAR(50),
+    LastLoadDate DATETIME
+);
+select* from Watermark1;
+----Inserting values in watermark tabel
+INSERT INTO Watermark1
+VALUES ('company_staff','2026-06-19');
+----Creating target table
+CREATE TABLE Staff_Target (
+    Staff_ID INT,
+    Name VARCHAR(50),
+    Salary INT,
+    ModifiedDate DATETIME
+);
+
+----Creating stored procedure
+CREATE PROCEDURE UpdateWatermark1
+AS
+BEGIN
+    UPDATE Watermark1
+    SET LastLoadDate = GETDATE()
+    WHERE TableName = 'company_staff'
+END
+
+-----Verifying  the output
+select * from Staff_Target;
+
+----Inserting new records
+INSERT INTO company_staff
+VALUES
+(6,'Mill',80000,GETDATE());
+
+-----Checking the output after running the pipeline
+select * from Staff_Target;
+
+
+
+
+
+ 
