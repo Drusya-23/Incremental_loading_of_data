@@ -1,0 +1,179 @@
+
+
+
+
+
+{
+    "name": "pl_incremental_practice",
+    "properties": {
+        "activities": [
+            {
+                "name": "Lookup_Watermark1",
+                "type": "Lookup",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "sqlReaderQuery": "SELECT LastLoadDate\nFROM Watermark1\nWHERE TableName='company_staff'",
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "dataset": {
+                        "referenceName": "DS_Watermark1",
+                        "type": "DatasetReference"
+                    }
+                }
+            },
+            {
+                "name": "Set_LastLoadDate",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "Lookup_Watermark1",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "variableName": "varLastLoadDate",
+                    "value": {
+                        "value": "@activity('Lookup_Watermark1').output.firstRow.LastLoadDate",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Copy_New_Records",
+                "type": "Copy",
+                "dependsOn": [
+                    {
+                        "activity": "Set_LastLoadDate",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "sqlReaderQuery": {
+                            "value": "@concat('SELECT *\nFROM company_staff\nWHERE ModifiedDate > ''',variables('varLastLoadDate'),'''')",
+                            "type": "Expression"
+                        },
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "sink": {
+                        "type": "AzureSqlSink",
+                        "writeBehavior": "insert",
+                        "sqlWriterUseTableLock": false
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                        "type": "TabularTranslator",
+                        "typeConversion": true,
+                        "typeConversionSettings": {
+                            "allowDataTruncation": true,
+                            "treatBooleanAsNumber": false
+                        }
+                    }
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_company_staff",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_Targettable",
+                        "type": "DatasetReference"
+                    }
+                ]
+            },
+            {
+                "name": "Set_CurrentDate",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "Copy_New_Records",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "variableName": "varCurrentDate",
+                    "value": {
+                        "value": "@utcNow()",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Update_Watermark",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "Set_CurrentDate",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "storedProcedureName": "[dbo].[UpdateWatermark1]"
+                },
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL",
+                    "type": "LinkedServiceReference"
+                }
+            }
+        ],
+        "variables": {
+            "varLastLoadDate": {
+                "type": "String"
+            },
+            "varCurrentDate": {
+                "type": "String"
+            }
+        },
+        "annotations": []
+    }
+}
+
